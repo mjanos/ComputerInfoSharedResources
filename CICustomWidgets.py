@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QLabel, QTableWidget, QDialog
+from PyQt5.QtWidgets import QLabel, QTableWidget, QDialog, QHBoxLayout
 from PyQt5.QtCore import Qt
 
 """Label that acts more like a link with color and cursor"""

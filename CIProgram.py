@@ -49,7 +49,7 @@ def get_program_from_registry(input_name,reg_path,search_terms,exclude_terms,deb
             pass
     return programlist
 
-"""Read JSON file to get options for what applications can be searched from "Find Apps""""
+"""Read JSON file to get options for what applications can be searched from 'Find Apps'"""
 class ProgramChoices(Settings):
     def __init__(self,filename_list,**kwargs):
         self.filename = filename_list
