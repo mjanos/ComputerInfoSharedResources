@@ -1,7 +1,6 @@
 import json
 import os
 from collections import OrderedDict
-from .CIPathFixes import exe_path
 
 class BadInputException(Exception):
     pass
@@ -24,7 +23,7 @@ class Settings(object):
         if type(filename_list) is not list:
             raise BadInputException("Input must be type list")
         for i,f in enumerate(self.filename):
-            self.filename[i] = exe_path(f)
+            self.filename[i] = f
         self.filename.append(self.default_folder + "\\" + self.default_filename)
         self.read_from_file()
         if not os.path.exists(self.default_folder + "\\" + self.default_filename):

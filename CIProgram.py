@@ -4,7 +4,6 @@ from .CIStorage import Program
 import json
 import os
 import re
-from .CIPathFixes import exe_path
 
 """Retrieves Uninstall keys from registry"""
 def get_program_from_registry(input_name,reg_path,search_terms,exclude_terms,debug=False):
@@ -62,7 +61,7 @@ class ProgramChoices(Settings):
         self.read_error_dict = {}
         self.max_key_len = 0
         for i,f in enumerate(self.filename):
-            self.filename[i] = exe_path(f)
+            self.filename[i] = f
         self.read_from_file()
         if not os.path.exists(self.default_folder + "\\" + self.default_filename):
             self.write_to_file()
