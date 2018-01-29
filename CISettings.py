@@ -7,19 +7,18 @@ class BadInputException(Exception):
 
 """Reads and writes settings to file"""
 class Settings(object):
-    settings_dict = {}
-    success_file = None
-    success_folder = None
-    read_error = None
-    other_error = None
-    max_key_len = 0
-    read_error_dict = {}
-
     def __init__(self,filename_list,**kwargs):
         self.filename = filename_list
         self.default_folder = kwargs.pop('default_folder',None)
         self.default_filename = kwargs.pop('default_filename',None)
         self.read_error_dict = kwargs.pop('read_error_dict',None)
+        self.settings_dict = {}
+        self.success_file = None
+        self.success_folder = None
+        self.read_error = None
+        self.other_error = None
+        self.max_key_len = 0
+        self.read_error_dict = {}
         if type(filename_list) is not list:
             raise BadInputException("Input must be type list")
         for i,f in enumerate(self.filename):
