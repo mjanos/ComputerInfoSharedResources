@@ -14,6 +14,8 @@ class MappedUser(object):
                 self.disks.append(disk)
             else:
                 print("duplicate detected")
+        else:
+            print("Instance not Disk but %s" % (type(disk)))
 
     def get_name(self):
         for i in self.disks:
