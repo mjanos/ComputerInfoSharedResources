@@ -8,7 +8,9 @@ class MappedUser(object):
         self.disks=[]
 
     def add_disk(self,disk=None):
-        self.disks.append(disk)
+        if isinstance(disk,'Disk'):
+            if not any(d for d in self.disks if d.systemname==disk.systemname and d.name == disk.name and d.path == disk.path and d.sessionid == disk.sessionid):
+                self.disks.append(disk)
 
     def get_name(self):
         for i in self.disks:
