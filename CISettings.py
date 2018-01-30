@@ -18,7 +18,6 @@ class Settings(object):
         self.read_error = None
         self.other_error = None
         self.max_key_len = 0
-        self.read_error_dict = {}
         if type(filename_list) is not list:
             raise BadInputException("Input must be type list")
         for i,f in enumerate(self.filename):
