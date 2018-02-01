@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QLabel, QTableWidget, QDialog, QHBoxLayout
-from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QLabel, QTableWidget, QDialog, QHBoxLayout, QLineEdit
+from PyQt5.QtCore import Qt, QEvent, pyqtSignal
 
 """Label that acts more like a link with color and cursor"""
 class LinkLabel(QLabel):
@@ -44,3 +44,37 @@ class CustomDataLabel(QHBoxLayout):
         self.addWidget(self.titlelabel)
         self.addWidget(self.datalabel)
         self.setAlignment(self.datalabel,Qt.AlignLeft)
+
+class CustomLineEdit(QLineEdit):
+    keyPressed = pyqtSignal(QEvent)
+    def __init__(self,*args,**kwargs):
+        self.scroll_list = kwargs.pop('scroll_list',None)
+        self.active_list_element = -1
+        self.initial_value = ""
+        super().__init__(*args,**kwargs)
+        self.keyPressed.connect(self.arrow)
+
+    def keyPressEvent(self,event):
+        super().keyPressEvent(event)
+        self.keyPressed.emit(event)
+
+    def arrow(self, event):
+        if self.initial_value == "":
+            self.initial_value = self.text()
+        if event.key() == Qt.Key_Up:
+            if self.active_list_element < len(self.scroll_list)-1:
+                self.active_list_element += 1
+            if self.active_list_element >= 0 and self.active_list_element < len(self.scroll_list):
+                if self.scroll_list[self.active_list_element] == self.initial_value and self.active_list_element < len(self.scroll_list)-1:
+                    self.active_list_element += 1
+                self.setText(self.scroll_list[self.active_list_element])
+                self.selectAll()
+        elif event.key() == Qt.Key_Down:
+            if self.active_list_element >= 0:
+                self.active_list_element -= 1
+            if self.active_list_element >= 0 and self.active_list_element < len(self.scroll_list):
+                self.setText(self.scroll_list[self.active_list_element])
+                self.selectAll()
+
+    def update_list(self,input_list):
+        self.scroll_list = input_list
