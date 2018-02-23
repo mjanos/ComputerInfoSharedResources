@@ -15,7 +15,7 @@ import re
 from winreg import *
 import traceback
 from .CIProgram import get_program_from_registry
-from .CIStorage import MappedUser, NetworkUser, Disk, Printer,Program
+from .CIStorage import MappedUser, NetworkUser, Disk, Printer,Program, Patch
 
 """
 Classes and Functions to find Information about remote computers
@@ -90,6 +90,7 @@ class ComputerInfo(object):
 
         self.programlist = []
         self.full_programlist = []
+        self.patches_list = []
         self.found_apps = {}
         self.install_status = {}
         self.programstring = []
@@ -117,6 +118,7 @@ class ComputerInfo(object):
         self.programs_queue = queue.Queue()
         self.devices_queue = queue.Queue()
         self.drives_queue = queue.Queue()
+        self.patches_queue = queue.Queue()
         self.single_install_status = -1
         self.local = False
         self.done_processing = False
@@ -590,7 +592,6 @@ class ComputerInfo(object):
         """
         returned_list = []
         if not self.full_programlist or fresh:
-            self.debug_print("finding all programs")
             self.full_programlist = get_program_from_registry(self.input_name,r"SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall",[],[])
             self.full_programlist.extend(get_program_from_registry(self.input_name,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",[],[]))
             if not self.full_programlist:
@@ -601,25 +602,18 @@ class ComputerInfo(object):
                     except: pass
                 try:
                     for i in self.search.Win32_Product(['Name','Version']):
-                        #if i.Name and re.search("[A-Za-z]",i.Name.replace("\xae","")) and not [p for p in self.full_programlist if p.name == i.Name.replace("\xae","")]:
-                        #if not "microsoft" in i.Name.lower(): print(i.Name)
                         self.full_programlist.append(Program(name=i.Name.replace("\xae",""),version=i.Version))
                 except: pass
 
                 pythoncom.CoUninitialize()
-            self.debug_print("all programs list is %s long" % len(self.full_programlist))
+
         if search_terms and self.full_programlist:
             for p in self.full_programlist:
                 if all([s.lower().strip() in p.name.lower().strip() for s in search_terms]):
-                    self.debug_print("All search terms matched for %s" % p.name.lower())
                     if exclude_terms:
-                        if any([e.lower().strip() in p.name.lower().strip() for e in exclude_terms]):
-                            self.debug_print("Search term matched for %s...discarding match" % p.name.lower())
                         if not any([e.lower().strip() in p.name.lower().strip() for e in exclude_terms]):
-                            self.debug_print("Including %s" % p)
                             returned_list.append(p)
                     else:
-                        self.debug_print(p)
                         returned_list.append(p)
             if returned_list == []:
                 returned_list = None
@@ -686,6 +680,18 @@ class ComputerInfo(object):
         for k in sub_keys:
             values.extend(self.rec_keys(k))
         return values
+
+    def get_patches(self):
+        self.patches_list = []
+        pythoncom.CoInitialize()
+        try:
+            self.search = self.wmi_wrapper(self.input_name,find_classes=False)
+        except: pass
+        for i in self.search.Win32_QuickFixEngineering(['Description','HotFixID','InstalledOn']):
+            self.patches_list.append(Patch(description=i.Description,kb=i.HotFixID,date=i.InstalledOn))
+        pythoncom.CoUninitialize()
+        self.patches_queue.put(list(set(self.patches_list)))
+
     def __str__(self):
         try: ip_address = self.ip_addresses[0]
         except: ip_address = "-"

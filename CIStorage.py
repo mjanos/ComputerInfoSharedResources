@@ -8,9 +8,14 @@ class MappedUser(object):
         self.disks=[]
 
     def add_disk(self,disk=None):
-        if disk:
+        if isinstance(disk,'Disk'):
             if not any(d for d in self.disks if d.systemname==disk.systemname and d.name == disk.name and d.path == disk.path and d.sessionid == disk.sessionid):
+                print("No duplicates")
                 self.disks.append(disk)
+            else:
+                print("duplicate detected")
+        else:
+            print("Instance not Disk but %s" % (type(disk)))
 
     def get_name(self):
         for i in self.disks:
@@ -51,6 +56,14 @@ class Program(object):
     def __str__(self):
         return "%s %s" % (self.name,self.version)
 
+class Patch(object):
+    def __init__(self,kb=None,date=None,description=None):
+        self.kb = kb
+        self.description = description
+        self.date = date
+
+    def __str__(self):
+        return "%s %s" % (self.kb, self.date)
 """
 Bool that can be locked
 (Might not be necessary)
