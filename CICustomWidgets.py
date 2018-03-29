@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QLabel, QTableWidget, QDialog, QHBoxLayout, QLineEdit
+from PyQt5.QtWidgets import QLabel, QTableWidget, QDialog, QHBoxLayout, QLineEdit, QScrollArea
 from PyQt5.QtCore import Qt, QEvent, pyqtSignal
 
 """Label that acts more like a link with color and cursor"""
@@ -78,3 +78,8 @@ class CustomLineEdit(QLineEdit):
 
     def update_list(self,input_list):
         self.scroll_list = input_list
+
+class CustomScrollBox(QScrollArea):
+    def __init__(self,*args,**kwargs):
+        self.layout_widget = kwargs.pop('layout_widget',None)
+        super().__init__(*args,**kwargs)
