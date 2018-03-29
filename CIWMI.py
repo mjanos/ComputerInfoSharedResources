@@ -10,7 +10,7 @@ import queue
 import time
 
 import os
-from shutil import copy2
+from shutil import copy2,which
 import re
 from winreg import *
 import traceback
@@ -566,9 +566,22 @@ class ComputerInfo(object):
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
-            result = subprocess.Popen(["cscript.exe",install_dict['script_path'].replace("/","\\"),self.input_name],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False, startupinfo=startupinfo)
-            self.out1, self.out1_err = result.communicate()
-            return result.returncode
+            if install_dict['script_path'].lower().endswith('vbs'):
+                result = subprocess.Popen(["cscript.exe",install_dict['script_path'].replace("/","\\"),self.input_name],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False, startupinfo=startupinfo)
+                self.out1, self.out1_err = result.communicate()
+            elif install_dict['script_path'].lower().endswith('ps1'):
+                result = subprocess.Popen(["powershell","-executionpolicy","bypass","-File",install_dict['script_path'].replace("/","\\"),self.input_name],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False,startupinfo=startupinfo)
+                self.out1, self.out1_err = result.communicate()
+            elif install_dict['script_path'].lower().endswith('.py'):
+                if which('python'):
+                    result = subprocess.Popen(["python",install_dict['script_path'].replace("/","\\"),self.input_name],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False,startupinfo=startupinfo)
+                    self.out1, self.out1_err = result.communicate()
+                else:
+                    self.out1, self.out1_err = ("Cannot find Python","Cannot find Python")
+            if 'result' in locals():
+                return result.returncode
+            else:
+                return -1
         else:
             return -9000
     def manual_run_script(self):
