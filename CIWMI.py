@@ -205,8 +205,6 @@ class ComputerInfo(object):
                 try:
                     self.name = self.name.lower().strip()
                 except:pass
-                if self.input_name.lower().strip() != self.name and not re_ip.match(self.input_name):
-                    raise DNSException("Computer names do not match(%s)(%s)" % (self.input_name.lower().strip(),self.name))
 
                 if i.Manufacturer:
                     self.make = i.Manufacturer
@@ -303,11 +301,11 @@ class ComputerInfo(object):
                         self.full_error = e
                         self.debug_print("+++++++++++++++++")
                         return_value = 2
-                    except DNSException as e:
-                        self.name = self.input_name
-                        self.status = "Computer Name Mismatch"
-                        self.debug_print(e)
-                        return_value = 7
+                    # except DNSException as e:
+                    #     self.name = self.input_name
+                    #     self.status = "Computer Name Mismatch"
+                    #     self.debug_print(e)
+                    #     return_value = 7
 
 
                     except Exception as e:
@@ -567,14 +565,16 @@ class ComputerInfo(object):
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
             if install_dict['script_path'].lower().endswith('vbs'):
-                result = subprocess.Popen(["cscript.exe",install_dict['script_path'].replace("/","\\"),self.input_name],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False, startupinfo=startupinfo)
+                result = subprocess.Popen(["cscript.exe", install_dict['script_path'].replace("/", "\\"), self.input_name, self.manual_user,
+                                           self.manual_pass], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, shell=False, startupinfo=startupinfo)
                 self.out1, self.out1_err = result.communicate()
             elif install_dict['script_path'].lower().endswith('ps1'):
-                result = subprocess.Popen(["powershell","-executionpolicy","bypass","-File",install_dict['script_path'].replace("/","\\"),self.input_name],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False,startupinfo=startupinfo)
+                result = subprocess.Popen(["powershell", "-executionpolicy", "bypass", "-File", install_dict['script_path'].replace("/", "\\"), self.input_name,
+                                           self.manual_user, self.manual_pass], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, shell=False, startupinfo=startupinfo)
                 self.out1, self.out1_err = result.communicate()
             elif install_dict['script_path'].lower().endswith('.py'):
                 if which('python'):
-                    result = subprocess.Popen(["python",install_dict['script_path'].replace("/","\\"),self.input_name],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False,startupinfo=startupinfo)
+                    result = subprocess.Popen(["python",install_dict['script_path'].replace("/","\\"),self.input_name,self.manual_user,self.manual_pass],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False,startupinfo=startupinfo)
                     self.out1, self.out1_err = result.communicate()
                 else:
                     self.out1, self.out1_err = ("Cannot find Python","Cannot find Python")
