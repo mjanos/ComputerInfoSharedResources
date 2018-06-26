@@ -78,11 +78,9 @@ class ComputerInfo(object):
         self.single_app_install = kwargs.pop('single_app_install',None)
         self.other_profiles = kwargs.pop('other_profiles',None)
         self.profile_list = kwargs.pop('profile_list',[])
-        self.debug = kwargs.pop('debug',False)
+        self.logger = kwargs.pop('logger',None)
         self.profile = kwargs.pop('profile',False)
-        self.verbose = kwargs.pop('verbose',False)
         self.manual_install_path = ""
-        self.debug_log = ""
         self.out1 = ""
         self.out1_err = ""
         self.out2 = ""
@@ -139,18 +137,11 @@ class ComputerInfo(object):
                     retval = 0
                 else:
                     retval = i.StartService()
-        except Exception as e:
-            self.debug_print(e)
+        except Exception:
+            self.logger.debug("Unable to start service",exc_info=True)
         pythoncom.CoUninitialize()
         return retval
 
-    def debug_print(self,data):
-        if self.debug:
-            print(data)
-            self.debug_log = self.debug_log + "\n" + str(data)
-    def verbose_print(self,data):
-        if self.debug and self.verbose:
-            print(data)
     def check_local(self):
         if self.admin:
             self.admin_status = self.add_admin(self.input_domain,self.input_group)
@@ -164,9 +155,10 @@ class ComputerInfo(object):
                 return True
             else:
                 return False
-        except Exception as e:
-            self.debug_print(e)
+        except Exception:
+            self.logger.debug("Unable to get local host info", exc_info=True)
             return False
+
     def wmi_wrapper(self,*args, **kwargs):
         """wrapper for the WMI class that allows for custom users and passwords"""
         if self.manual_user and self.manual_pass and not self.local:
@@ -175,6 +167,7 @@ class ComputerInfo(object):
             kwargs['user'] = self.manual_user
             kwargs['password'] = self.manual_pass
         return wmi.WMI(*args,**kwargs)
+
     def ping_test(self,input_name):
         if input_name:
             ping_result = None
@@ -184,18 +177,21 @@ class ComputerInfo(object):
             try:
                 ping_result = subprocess.Popen(["ping","-n","1",input_name],stdout = subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False, startupinfo=startupinfo)
             except OSError:
-                pass
-            if not ping_result is None:
-                ping_result.communicate()
-                return ping_result.returncode
+                self.logger.debug("Ping error on %s" % input_name, exc_info=True)
             else:
-                return -45
+                try:
+                    ping_result.communicate()
+                    return ping_result.returncode
+                except:
+                    return -45
         else:
             return -1
+
     def get_info(self):
         """Main running class to get all the info."""
         if self.profile:
             start_time = time.time()
+
         def comp_system():
             for i in self.search.Win32_ComputerSystem(['Name','Manufacturer','UserName','Model','TotalPhysicalMemory']):
                 if i.Name:
@@ -225,7 +221,8 @@ class ComputerInfo(object):
                 for i in self.search.Win32_Processor(['Name']):
                     if i.Name:
                         self.cpu = i.Name
-            except Exception as e: self.debug_print(e)
+            except Exception: 
+                self.logger.debug("Unable to get CPU info", exc_info=True)
 
             try:
                 for i in self.search.Win32_OperatingSystem(['Name']):
@@ -251,17 +248,18 @@ class ComputerInfo(object):
                     else:
                         self.os = self.os + " x86"
 
-            except Exception as e: self.debug_print(e)
+            except Exception: 
+                self.logger.debug("Unable to get OS info", exc_info=True)
             mon_count = 0
             start_bench = time.time()
 
             self.monitors = self.get_monitors(quick_info=False)
             self.ip_addresses.append(socket.gethostbyname(self.input_name))
             self.status = None
-            self.debug_print("%s time to run thread" % (time.time()-start_bench))
+            self.logger.info("%s time to run thread" % (time.time()-start_bench))
 
         def lookup():
-            self.verbose_print("Trying %s..." % self.input_name)
+            self.logger.info("Trying %s..." % self.input_name)
             return_value = None
             if not self.local:
                 ping_result = self.ping_test(self.input_name)
@@ -272,15 +270,11 @@ class ComputerInfo(object):
                         comp_system()
                         return_value = 0
                         self.status = None
-                    except pythoncom.com_error as e:
-                        exec_type, exec_value, exec_traceback = sys.exc_info()
-                        self.debug_print(exec_value)
+                    except pythoncom.com_error:
+                        _, exec_value, _ = sys.exc_info()
+                        self.logger.debug("Unable to get comp info on %s" % self.input_name, exc_info=True)
                         self.name = self.input_name
                         self.status = str(exec_value)
-                        self.debug_print("-----------------")
-                        self.debug_print("%s -- %s" % (e,self.input_name))
-                        self.full_error = e
-                        self.debug_print("-----------------")
 
                         return_value = 1
                     except wmi.x_wmi as e:
@@ -296,30 +290,13 @@ class ComputerInfo(object):
                                 self.status = str(e.com_error)
                             if self.status == "Access is denied.":
                                 self.show_admin_btn = True
-                        self.debug_print("+++++++++++++++++")
-                        self.debug_print("%s -- %s" % (e,self.input_name))
-                        self.full_error = e
-                        self.debug_print("+++++++++++++++++")
+                        self.logger.debug("Access error on %s" % (self.input_name), exc_info=True)
                         return_value = 2
-                    # except DNSException as e:
-                    #     self.name = self.input_name
-                    #     self.status = "Computer Name Mismatch"
-                    #     self.debug_print(e)
-                    #     return_value = 7
 
-
-                    except Exception as e:
-                        #exc_type, exc_obj, exc_tb = sys.exc_info()
-                        #fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                        #print()
-                        self.debug_print("====================")
-                        #self.debug_print("%s -- %s -- %s" % (exc_type, fname, exc_tb))
-                        self.debug_print(traceback.format_exc())
-                        #self.full_error = e
-                        self.debug_print("====================")
+                    except Exception:
+                        self.logger.debug("Unknown Error on %s" % self.input_name, exc_info=True)
                         self.name = self.input_name
                         self.status = str("Unknown Error")
-                        self.debug_print(e)
                         return_value = 3
 
                 else:
@@ -333,16 +310,14 @@ class ComputerInfo(object):
                     return_value = 0
 
                 except pythoncom.com_error as e:
-                    exec_type, exec_value, exec_traceback = sys.exc_info()
-                    self.debug_print("......" + str(self.input_name) + ".......")
-                    self.debug_print(exec_value)
+                    _, exec_value, _ = sys.exc_info()
+                    self.logger.debug("Unable to get PC info on %s" % self.input_name, exc_info=True)
                     self.status = str(exec_value.com_error.strerror)
                     return_value = 5
 
                 except Exception as e:
-                    exec_type, exec_value, exec_traceback = sys.exc_info()
-                    self.debug_print("......" + str(self.input_name) + ".......")
-                    self.debug_print(exec_value)
+                    exec_type, _, _ = sys.exc_info()
+                    self.logger.debug("Unable to get PC info on %s" % self.input_name, exc_info=True)
                     self.name = self.input_name
                     self.status = str(exec_type)
                     return_value = 6
@@ -387,6 +362,7 @@ class ComputerInfo(object):
             self.get_printers()
         self.q.put(self,True,60)
         self.done_processing = True
+
     def add_admin(self,domain,bindUser):
         """Add bindUser to local 'Administrators' group"""
         NS = win32com.client.Dispatch('ADSNameSpaces')
@@ -404,14 +380,13 @@ class ComputerInfo(object):
                     retval = "Added to group"
                 else:
                     retval = "Already added to Admin Group"
-            except Exception as e:
-                exec_type, exec_value, exec_traceback = sys.exc_info()
-                #self.debug_print("---------" + self.input_name + "--------")
-                #self.debug_print(exec_value)
+            except Exception:
+                self.logger.debug("Unable to add admin group to %s" % self.input_name, exc_info=True)
                 retval = "Authentication Failed"
         else:
             retval = "Invalid Credentials"
         return retval
+
     def create_paths(self):
         """Generates paths for dropping icons"""
         if self.public_check: self.paths['public desktop'] = {'path':"\\\\%s\\c$\\users\\public\\desktop" % (self.input_name),'result':None}
@@ -420,10 +395,11 @@ class ComputerInfo(object):
                 if p:
                     self.paths[p + " desktop"] = {'path':"\\\\%s\\c$\\users\\%s\\desktop" %(self.input_name,p),'result':None}
         if self.startup_check: self.paths['startup folder'] = {'path':"\\\\%s\\c$\\programdata\\microsoft\\windows\\start menu\\programs\\startup" % (self.input_name),'result':None}
+
     def copy_icons(self):
         self.create_paths()
         """Copies icons to paths and specifies if the operation completed, the folder does not exist (DNE) or other error"""
-        self.debug_print("Copying to %s" % self.input_name)
+        self.logger.info("Copying to %s" % self.input_name)
         if self.input_name and self.shortcut_filename:
             for s,v in self.paths.items():
                 try:
@@ -434,7 +410,8 @@ class ComputerInfo(object):
                          v['result'] = "DNE"
                 except Exception as e:
                     self.icon_retval = v['result'] = "Error Copying Icons"
-                    self.debug_print(e)
+                    self.logger.debug("Error copying icons %s" % self.input_name, exc_info=True)
+
     def get_printers(self):
         """Returns printers of computer. Designed to be thread safe"""
         self.printers = []
@@ -443,10 +420,12 @@ class ComputerInfo(object):
             self.search = self.wmi_wrapper(self.input_name,find_classes=False)
             for i in self.search.Win32_Printer(['Name','PortName']):
                 self.printers.append(Printer(printer=i.Name,port=i.PortName))
-        except Exception as e:
-            self.debug_print(e)
+        except Exception:
+            self.logger.debug("Unable to get printers on %s" %
+                              self.input_name, exc_info=True)
         pythoncom.CoUninitialize()
         self.printer_queue.put(self.printers)
+
     def get_users(self):
         """Get users information to help find drives later"""
         pythoncom.CoInitialize()
@@ -463,9 +442,11 @@ class ComputerInfo(object):
                     n.logon_server = i.LogonServer
                     self.networkusers.append(n)
 
-        except Exception as e:
-            self.debug_print(e)
+        except Exception:
+            self.logger.debug("Unable to get users on %s" %
+                              self.input_name, exc_info=True)
         pythoncom.CoUninitialize()
+
     def get_disks(self):
         """Gets mapped drives per user"""
         pythoncom.CoInitialize()
@@ -480,10 +461,12 @@ class ComputerInfo(object):
                     self.users[str(i.SessionID)].add_disk(self.disks[-1])
             for key,value in self.users.items():
                 value.get_name()
-        except Exception as e:
-            self.debug_print(e)
+        except Exception:
+            self.logger.debug("Unable to get disks %s" %
+                              self.input_name, exc_info=True)
         pythoncom.CoUninitialize()
         self.drives_queue.put(True)
+
     def get_devices(self):
         """Find devices such as scanners. ***WIP***"""
         pythoncom.CoInitialize()
@@ -492,8 +475,8 @@ class ComputerInfo(object):
             for i in self.search.Win32_USBControllerDevice(['Dependent']):
                 if not i.Dependent.Caption in ignored_usb:
                     self.devices.append(i.Dependent.Caption)
-        except Exception as e:
-            self.debug_print(e)
+        except Exception:
+            self.logger.debug("Unable to get devices on %s" % self.input_name, exc_info=True)
         pythoncom.CoUninitialize()
         if not self.devices:
             try:
@@ -514,6 +497,7 @@ class ComputerInfo(object):
             except:pass
 
         self.devices_queue.put(self.devices)
+    
     def get_monitors(self,quick_info=False):
         """Gets monitor information from registry"""
         mon_count = 0
@@ -557,9 +541,10 @@ class ComputerInfo(object):
         if not mon_count:
             mon_count = mon_count_backup
         return mon_count
+
     def run_script(self,install_dict):
-        self.debug_print("Installing app")
         """Runs script associated with applications"""
+        self.logger.info("Installing app on %s" % self.input_name)
         if 'script_path' in install_dict:
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -584,6 +569,7 @@ class ComputerInfo(object):
                 return -1
         else:
             return -9000
+
     def manual_run_script(self):
         self.debug_print("Installing app")
         if self.manual_install_path:
@@ -597,6 +583,7 @@ class ComputerInfo(object):
         else:
             self.manual_install_queue.put(-9000)
             return -9000
+
     def get_specific_program(self,search_terms = [],exclude_terms=[],live=False,get_version=False,fresh=False,complete_query=None):
         start_time = time.time()
         """
@@ -666,6 +653,7 @@ class ComputerInfo(object):
                     return list(set(temp_result))
             else:
                 return
+                
     def rec_keys(self,key):
         """Recursive method to dig into registry keys"""
         values = []
