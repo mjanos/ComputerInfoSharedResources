@@ -120,6 +120,7 @@ class ComputerInfo(object):
         self.single_install_status = -1
         self.local = False
         self.done_processing = False
+        self.extra_parameters = kwargs.pop('extra_parameters',[])
         if type(self.input_name) is str: self.input_name = self.input_name.strip()
         #self.create_paths()
 
@@ -162,8 +163,8 @@ class ComputerInfo(object):
     def wmi_wrapper(self,*args, **kwargs):
         """wrapper for the WMI class that allows for custom users and passwords"""
         if self.manual_user and self.manual_pass and not self.local:
-            if self.manual_user.find("\\") == -1:
-                self.manual_user = self.input_name + "\\" + self.manual_user
+            # if self.manual_user.find("\\") == -1:
+            #     self.manual_user = self.input_name + "\\" + self.manual_user
             kwargs['user'] = self.manual_user
             kwargs['password'] = self.manual_pass
         return wmi.WMI(*args,**kwargs)
@@ -330,7 +331,10 @@ class ComputerInfo(object):
             if self.get_monitors_bool: self.get_monitors()
             if self.single_app_install:
                 self.single_install_status = -1
-                self.single_install_status = self.run_script({'script_path':self.single_app_install})
+                if self.extra_parameters:
+                    self.single_install_status = self.run_script({'script_path':self.single_app_install,'extra_parameters':self.extra_parameters})
+                else:
+                    self.single_install_status = self.run_script({'script_path':self.single_app_install})
                 if self.single_install_status == 0:
                     self.single_install_status = "Success"
             if self.other_applications and self.get_apps_bool:
@@ -546,6 +550,9 @@ class ComputerInfo(object):
         """Runs script associated with applications"""
         self.logger.info("Installing app on %s" % self.input_name)
         if 'script_path' in install_dict:
+            extra_parameters = []
+            if 'extra_parameters' in install_dict:
+                extra_parameters = install_dict['extra_parameters']
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
@@ -559,7 +566,7 @@ class ComputerInfo(object):
                 self.out1, self.out1_err = result.communicate()
             elif install_dict['script_path'].lower().endswith('.py'):
                 if which('python'):
-                    result = subprocess.Popen(["python",install_dict['script_path'].replace("/","\\"),self.input_name,self.manual_user,self.manual_pass],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False,startupinfo=startupinfo)
+                    result = subprocess.Popen(["python",install_dict['script_path'].replace("/","\\"),self.input_name,self.manual_user,self.manual_pass] + extra_parameters,stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False,startupinfo=startupinfo)
                     self.out1, self.out1_err = result.communicate()
                 else:
                     self.out1, self.out1_err = ("Cannot find Python","Cannot find Python")

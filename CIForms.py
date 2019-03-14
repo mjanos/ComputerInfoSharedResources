@@ -105,10 +105,15 @@ class FileForm(QWidget):
     """
     QWidget form class that generates file picker and handles getting the filename
     """
+
+    form_change = pyqtSignal(str)
+
     def __init__(self, parent=None, extensionsallowed=None, title="Pick File",input_filename=None):
         super().__init__(parent)
         self.extensionsallowed = extensionsallowed
         self.title = title
+        self.extra_fields = []
+        self.extra_labels = []
         self.filename = None
         if not input_filename is None:
             self.setFilename(input_filename)
@@ -127,7 +132,7 @@ class FileForm(QWidget):
         self.layout.addWidget(self.filelabel)
         self.layout.addWidget(self.filebtn)
         self.groupbox.setLayout(self.layout)
-        self.mainlayout = QHBoxLayout()
+        self.mainlayout = QVBoxLayout()
         self.mainlayout.addWidget(self.groupbox)
         self.setLayout(self.mainlayout)
 
@@ -135,14 +140,40 @@ class FileForm(QWidget):
         self.filename, _ = QFileDialog.getOpenFileName(self,"Pick File","",self.extensionsallowed)
         if self.filename != '':
             self.filelabel.setText(self.filename)
+            self.form_change.emit(self.filename)
     def setFilename(self,input_filename):
         self.filename = input_filename
         self.filelabel.text(self.filename)
 
     def form_disable(self):
+        print("disabling...")
         self.filebtn.setEnabled(False)
+        for f in self.extra_fields:
+            f.setEnabled(False)
     def form_enable(self):
         self.filebtn.setEnabled(True)
+        for f in self.extra_fields:
+            f.setEnabled(True)
+
+    def add_field(self,field_name):
+        self.extra_fields.append(QLineEdit())
+        self.extra_labels.append(QLabel(field_name))
+        self.mainlayout.addWidget(self.extra_labels[-1])
+        self.mainlayout.addWidget(self.extra_fields[-1])
+
+    def get_field_list(self):
+        field_values = []
+        for field in self.extra_fields:
+            field_values.append(field.text())
+        return field_values
+
+    def remove_fields(self):
+        for f in self.extra_fields:
+            self.mainlayout.removeWidget(f)
+        for l in self.extra_labels:
+            self.mainlayout.removeWidget(l)
+        self.extra_fields = []
+        self.extra_labels = []
 
 class ShortcutCheckboxForm(QWidget):
     """
