@@ -578,15 +578,34 @@ class ComputerInfo(object):
             return -9000
 
     def manual_run_script(self):
-        self.debug_print("Installing app")
+        self.logger.info("Installing app")
+        #self.manual_install_path
         if self.manual_install_path:
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = subprocess.SW_HIDE
-            result = subprocess.Popen(["cscript.exe",self.manual_install_path.replace("/","\\"),self.input_name],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False, startupinfo=startupinfo)
-            self.out2, self.out2_err = result.communicate()
-            self.manual_install_queue.put(result.returncode)
-            return result.returncode
+            
+            if self.manual_user is None: self.manual_user = ""
+            if self.manual_pass is None: self.manual_pass = ""
+
+            if self.manual_install_path.lower().endswith('vbs'):
+                result = subprocess.Popen(["cscript.exe", self.manual_install_path.replace("/", "\\"), self.input_name, self.manual_user,
+                                           self.manual_pass], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, shell=False, startupinfo=startupinfo)
+                self.out1, self.out1_err = result.communicate()
+            elif self.manual_install_path.lower().endswith('ps1'):
+                result = subprocess.Popen(["powershell", "-executionpolicy", "bypass", "-File", self.manual_install_path.replace("/", "\\"), self.input_name,
+                                           self.manual_user, self.manual_pass], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, shell=False, startupinfo=startupinfo)
+                self.out1, self.out1_err = result.communicate()
+            elif self.manual_install_path.lower().endswith('.py'):
+                if which('python'):
+                    result = subprocess.Popen(["python",self.manual_install_path.replace("/","\\"),self.input_name,self.manual_user,self.manual_pass],stdout=subprocess.PIPE,stderr=subprocess.PIPE,stdin=subprocess.PIPE,shell=False,startupinfo=startupinfo)
+                    self.out1, self.out1_err = result.communicate()
+                else:
+                    self.out1, self.out1_err = ("Cannot find Python","Cannot find Python")
+            if 'result' in locals():
+                return result.returncode
+            else:
+                return -1
         else:
             self.manual_install_queue.put(-9000)
             return -9000
