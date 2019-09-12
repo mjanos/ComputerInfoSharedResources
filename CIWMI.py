@@ -163,8 +163,8 @@ class ComputerInfo(object):
     def wmi_wrapper(self,*args, **kwargs):
         """wrapper for the WMI class that allows for custom users and passwords"""
         if self.manual_user and self.manual_pass and not self.local:
-            # if self.manual_user.find("\\") == -1:
-            #     self.manual_user = self.input_name + "\\" + self.manual_user
+            if self.manual_user.find("\\") == -1:
+                self.manual_user = self.input_name + "\\" + self.manual_user
             kwargs['user'] = self.manual_user
             kwargs['password'] = self.manual_pass
         return wmi.WMI(*args,**kwargs)
